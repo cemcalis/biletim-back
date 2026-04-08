@@ -1,151 +1,134 @@
 {
   "routes": [
     {
-      "from": "Mumbai",
-      "to": "Pune",
+      "from": "Ankara",
+      "to": "İstanbul",
       "basePrice": 450,
       "durationMinutes": 210
     },
     {
-      "from": "Delhi",
-      "to": "Jaipur",
+      "from": "Maraş",
+      "to": "Eskişehir",
       "basePrice": 650,
       "durationMinutes": 345
     },
     {
-      "from": "Bangalore",
-      "to": "Chennai",
+      "from": "Urfa",
+      "to": "Yozgat",
       "basePrice": 550,
       "durationMinutes": 375
     },
     {
-      "from": "Hyderabad",
-      "to": "Vijayawada",
+      "from": "Balıkesir",
+      "to": "Diyarbakır",
       "basePrice": 350,
       "durationMinutes": 260
     }
   ],
   "trips": [
     {
+      "id": "TRP-462074",
+      "companyId": "CMP-297038",
+      "company": "al'",
+      "from": "ankara",
+      "to": "istanbul",
+      "departureDate": "2026-04-08",
+      "arrivalDate": "2026-04-08",
+      "departureTime": "11:00",
+      "durationMinutes": 360,
+      "price": 900,
+      "busType": "m",
+      "rating": 4,
+      "seatsTotal": 40
+    },
+    {
+      "id": "TRP-459768",
+      "companyId": "CMP-297038",
+      "company": "al'",
+      "from": "istanbul",
+      "to": "ankara",
+      "departureTime": "10:30",
+      "durationMinutes": 360,
+      "price": 900,
+      "busType": "l",
+      "rating": 4,
+      "seatsTotal": 40,
+      "departureDate": "2026-04-08",
+      "arrivalDate": "2026-04-08"
+    },
+    {
       "id": "TRP-5001",
+      "companyId": "CMP-0001",
       "company": "RedBus Travels",
-      "from": "Mumbai",
-      "to": "Pune",
+      "from": "Ankara",
+      "to": "İstanbul",
       "departureTime": "10:30 PM",
       "durationMinutes": 375,
       "price": 850,
-      "busType": "AC Sleeper",
+      "busType": "Çift Katlı Mercedes Klimalı VIP",
       "rating": 4.5,
       "seatsTotal": 40,
-      "companyId": "CMP-0001"
+      "departureDate": "2026-04-08",
+      "arrivalDate": "2026-04-08"
     },
     {
       "id": "TRP-5002",
+      "companyId": "CMP-0001",
       "company": "SRS Travels",
-      "from": "Mumbai",
-      "to": "Pune",
+      "from": "Maraş",
+      "to": "Eskişehir",
       "departureTime": "11:15 PM",
       "durationMinutes": 375,
       "price": 720,
-      "busType": "AC Semi-Sleeper",
+      "busType": "Mercedes Travego Klimalı",
       "rating": 4.2,
       "seatsTotal": 36,
-      "companyId": "CMP-0001"
+      "departureDate": "2026-04-08",
+      "arrivalDate": "2026-04-08"
     },
     {
       "id": "TRP-5003",
+      "companyId": "CMP-0001",
       "company": "Volvo Travels",
-      "from": "Mumbai",
-      "to": "Pune",
+      "from": "Urfa",
+      "to": "Yozgat",
       "departureTime": "10:45 PM",
       "durationMinutes": 375,
       "price": 950,
-      "busType": "Volvo AC Multi-Axle",
+      "busType": "Volvo Klimalı Normal",
       "rating": 4.7,
       "seatsTotal": 36,
-      "companyId": "CMP-0001"
+      "departureDate": "2026-04-08",
+      "arrivalDate": "2026-04-08"
     },
     {
       "id": "TRP-5004",
+      "companyId": "CMP-0001",
       "company": "Parveen Travels",
-      "from": "Mumbai",
-      "to": "Pune",
+      "from": "Balıkesir",
+      "to": "Diyarbakır",
       "departureTime": "6:00 AM",
       "durationMinutes": 435,
       "price": 450,
-      "busType": "Non-AC Seater",
+      "busType": "Klimasız Normal",
       "rating": 3.9,
       "seatsTotal": 48,
-      "companyId": "CMP-0001"
+      "departureDate": "2026-04-08",
+      "arrivalDate": "2026-04-08"
     }
   ],
-  "bookings": [
-    {
-      "bookingCode": "RB-563230",
-      "tripId": "TRP-5001",
-      "route": "Mumbai - Pune",
-      "company": "RedBus Travels",
-      "seatNumber": "A1",
-      "passengerName": "Rajesh Kumar",
-      "passengerEmail": "rajesh@example.com",
-      "totalPrice": 850,
-      "status": "Canceled",
-      "passengers": 1,
-      "travelDate": "2026-04-18",
-      "departureTime": "10:30 PM",
-      "arrivalTime": "Estimated",
-      "createdAt": "2026-04-07T12:39:23.230Z"
-    },
-    {
-      "bookingCode": "RB-484425",
-      "tripId": "TRP-5002",
-      "route": "Mumbai - Pune",
-      "company": "SRS Travels",
-      "seatNumber": "A9",
-      "passengerName": "Rajesh Kumar",
-      "passengerEmail": "rajesh@example.com",
-      "totalPrice": 720,
-      "status": "Confirmed",
-      "passengers": 1,
-      "travelDate": "Today",
-      "departureTime": "11:15 PM",
-      "arrivalTime": "Estimated",
-      "createdAt": "2026-04-07T12:38:04.425Z"
-    },
-    {
-      "bookingCode": "RB-480041",
-      "tripId": "TRP-5002",
-      "route": "Mumbai - Pune",
-      "company": "SRS Travels",
-      "seatNumber": "A7",
-      "passengerName": "Rajesh Kumar",
-      "passengerEmail": "rajesh@example.com",
-      "totalPrice": 720,
-      "status": "Confirmed",
-      "passengers": 1,
-      "travelDate": "Today",
-      "departureTime": "11:15 PM",
-      "arrivalTime": "Estimated",
-      "createdAt": "2026-04-07T12:38:00.041Z"
-    },
-    {
-      "bookingCode": "RB-441692",
-      "tripId": "TRP-5001",
-      "route": "Mumbai - Pune",
-      "company": "RedBus Travels",
-      "seatNumber": "A1",
-      "passengerName": "Rajesh Kumar",
-      "passengerEmail": "rajesh@example.com",
-      "totalPrice": 850,
-      "status": "Canceled",
-      "passengers": 1,
-      "travelDate": "Today",
-      "departureTime": "10:30 PM",
-      "arrivalTime": "Estimated",
-      "createdAt": "2026-04-07T12:37:21.692Z"
-    }
-  ],
+  "bookings": [],
   "companies": [
+    {
+      "id": "CMP-297038",
+      "companyName": "al'",
+      "contactName": "al'",
+      "email": "alicelik@gmail.com",
+      "password": "123456",
+      "status": "approved",
+      "createdAt": "2026-04-08T09:08:17.038Z",
+      "approvedAt": "2026-04-08T09:09:34.354Z"
+    },
     {
       "id": "CMP-0001",
       "companyName": "Near East Ulasim Partner",
@@ -153,9 +136,18 @@
       "email": "company@neareast.local",
       "password": "Company123!",
       "status": "approved",
-      "createdAt": "2026-04-08T05:14:26.569Z",
-      "approvedAt": "2026-04-08T05:14:26.569Z"
+      "createdAt": "2026-04-08T06:19:25.500Z",
+      "approvedAt": "2026-04-08T06:19:25.501Z"
     }
   ],
-  "vehicles": []
+  "vehicles": [
+    {
+      "id": "BUS-416601",
+      "companyId": "CMP-297038",
+      "plate": "PS592",
+      "busType": "bmw",
+      "seatsTotal": 40,
+      "createdAt": "2026-04-08T09:10:16.601Z"
+    }
+  ]
 }
