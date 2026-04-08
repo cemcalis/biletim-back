@@ -1,0 +1,161 @@
+{
+  "routes": [
+    {
+      "from": "Mumbai",
+      "to": "Pune",
+      "basePrice": 450,
+      "durationMinutes": 210
+    },
+    {
+      "from": "Delhi",
+      "to": "Jaipur",
+      "basePrice": 650,
+      "durationMinutes": 345
+    },
+    {
+      "from": "Bangalore",
+      "to": "Chennai",
+      "basePrice": 550,
+      "durationMinutes": 375
+    },
+    {
+      "from": "Hyderabad",
+      "to": "Vijayawada",
+      "basePrice": 350,
+      "durationMinutes": 260
+    }
+  ],
+  "trips": [
+    {
+      "id": "TRP-5001",
+      "company": "RedBus Travels",
+      "from": "Mumbai",
+      "to": "Pune",
+      "departureTime": "10:30 PM",
+      "durationMinutes": 375,
+      "price": 850,
+      "busType": "AC Sleeper",
+      "rating": 4.5,
+      "seatsTotal": 40,
+      "companyId": "CMP-0001"
+    },
+    {
+      "id": "TRP-5002",
+      "company": "SRS Travels",
+      "from": "Mumbai",
+      "to": "Pune",
+      "departureTime": "11:15 PM",
+      "durationMinutes": 375,
+      "price": 720,
+      "busType": "AC Semi-Sleeper",
+      "rating": 4.2,
+      "seatsTotal": 36,
+      "companyId": "CMP-0001"
+    },
+    {
+      "id": "TRP-5003",
+      "company": "Volvo Travels",
+      "from": "Mumbai",
+      "to": "Pune",
+      "departureTime": "10:45 PM",
+      "durationMinutes": 375,
+      "price": 950,
+      "busType": "Volvo AC Multi-Axle",
+      "rating": 4.7,
+      "seatsTotal": 36,
+      "companyId": "CMP-0001"
+    },
+    {
+      "id": "TRP-5004",
+      "company": "Parveen Travels",
+      "from": "Mumbai",
+      "to": "Pune",
+      "departureTime": "6:00 AM",
+      "durationMinutes": 435,
+      "price": 450,
+      "busType": "Non-AC Seater",
+      "rating": 3.9,
+      "seatsTotal": 48,
+      "companyId": "CMP-0001"
+    }
+  ],
+  "bookings": [
+    {
+      "bookingCode": "RB-563230",
+      "tripId": "TRP-5001",
+      "route": "Mumbai - Pune",
+      "company": "RedBus Travels",
+      "seatNumber": "A1",
+      "passengerName": "Rajesh Kumar",
+      "passengerEmail": "rajesh@example.com",
+      "totalPrice": 850,
+      "status": "Canceled",
+      "passengers": 1,
+      "travelDate": "2026-04-18",
+      "departureTime": "10:30 PM",
+      "arrivalTime": "Estimated",
+      "createdAt": "2026-04-07T12:39:23.230Z"
+    },
+    {
+      "bookingCode": "RB-484425",
+      "tripId": "TRP-5002",
+      "route": "Mumbai - Pune",
+      "company": "SRS Travels",
+      "seatNumber": "A9",
+      "passengerName": "Rajesh Kumar",
+      "passengerEmail": "rajesh@example.com",
+      "totalPrice": 720,
+      "status": "Confirmed",
+      "passengers": 1,
+      "travelDate": "Today",
+      "departureTime": "11:15 PM",
+      "arrivalTime": "Estimated",
+      "createdAt": "2026-04-07T12:38:04.425Z"
+    },
+    {
+      "bookingCode": "RB-480041",
+      "tripId": "TRP-5002",
+      "route": "Mumbai - Pune",
+      "company": "SRS Travels",
+      "seatNumber": "A7",
+      "passengerName": "Rajesh Kumar",
+      "passengerEmail": "rajesh@example.com",
+      "totalPrice": 720,
+      "status": "Confirmed",
+      "passengers": 1,
+      "travelDate": "Today",
+      "departureTime": "11:15 PM",
+      "arrivalTime": "Estimated",
+      "createdAt": "2026-04-07T12:38:00.041Z"
+    },
+    {
+      "bookingCode": "RB-441692",
+      "tripId": "TRP-5001",
+      "route": "Mumbai - Pune",
+      "company": "RedBus Travels",
+      "seatNumber": "A1",
+      "passengerName": "Rajesh Kumar",
+      "passengerEmail": "rajesh@example.com",
+      "totalPrice": 850,
+      "status": "Canceled",
+      "passengers": 1,
+      "travelDate": "Today",
+      "departureTime": "10:30 PM",
+      "arrivalTime": "Estimated",
+      "createdAt": "2026-04-07T12:37:21.692Z"
+    }
+  ],
+  "companies": [
+    {
+      "id": "CMP-0001",
+      "companyName": "Near East Ulasim Partner",
+      "contactName": "Sistem Firma Yoneticisi",
+      "email": "company@neareast.local",
+      "password": "Company123!",
+      "status": "approved",
+      "createdAt": "2026-04-08T05:14:26.569Z",
+      "approvedAt": "2026-04-08T05:14:26.569Z"
+    }
+  ],
+  "vehicles": []
+}
