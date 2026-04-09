@@ -5,10 +5,11 @@ import {
   Param,
   Patch,
   Post,
+  Delete,
   Query,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { AdminRole } from '../common/types';
+import { AdminRole, Trip } from '../common/types';
 
 @Controller('admin')
 export class AdminController {
@@ -35,5 +36,15 @@ export class AdminController {
     @Body() body: { token: string },
   ) {
     return this.adminService.approveCompany(body.token, companyId);
+  }
+
+  @Post('trips')
+  createTrip(@Body() body: { token: string; trip: Partial<Trip> }) {
+    return this.adminService.createTrip(body.token, body.trip);
+  }
+
+  @Delete('trips/:id')
+  deleteTrip(@Param('id') id: string, @Body() body: { token: string }) {
+    return this.adminService.deleteTrip(body.token, id);
   }
 }

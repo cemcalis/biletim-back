@@ -11,6 +11,7 @@ export type RouteSummary = {
 
 export type Trip = {
   id: string;
+  tripCode?: string;
   companyId: string;
   company: string;
   from: string;
@@ -24,6 +25,7 @@ export type Trip = {
   rating: number;
   seatsTotal: number;
   seatLayout: '2+2' | '2+1' | '1+1';
+  isActive?: boolean;
 };
 
 export type BookingInput = {

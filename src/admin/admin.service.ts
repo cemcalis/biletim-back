@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { DataStoreService } from '../common/data/data-store.service';
-import { AdminRole } from '../common/types';
+import { AdminRole, Trip } from '../common/types';
 
 const accessRules: Record<string, AdminRole[]> = {
   companyRequests: ['super-admin'],
   approveCompany: ['super-admin'],
+  manageTrips: ['super-admin', 'company-admin'],
 };
 
 @Injectable()
@@ -61,6 +62,52 @@ export class AdminService {
 
     company.status = 'approved';
     company.approvedAt = new Date().toISOString();
+    this.dataStore.saveData(db);
+    return { ok: true };
+  }
+  
+  createTrip(adminToken: string, tripData: Partial<Trip>) {
+    if (!this.dataStore.canAdminAccess(adminToken, accessRules.manageTrips)) {
+      return { ok: false, message: 'Yetkisiz islem' };
+    }
+
+    const db = this.dataStore.readData();
+    const approvedCompany = db.companies.find((item) => item.status === 'approved') ?? db.companies[0];
+    
+    const newTrip: Trip = {
+      id: `TRP-${Date.now().toString().slice(-4)}`,
+      tripCode: tripData.tripCode ?? `EXP-${Math.floor(Math.random()*1000)}`,
+      companyId: approvedCompany?.id ?? 'CMP-0000',
+      company: tripData.company ?? 'Biletim A.Ş. Seferleri',
+      from: tripData.from ?? 'Ankara',
+      to: tripData.to ?? 'İstanbul',
+      departureDate: tripData.departureDate ?? new Date().toISOString().slice(0, 10),
+      arrivalDate: tripData.arrivalDate ?? new Date().toISOString().slice(0, 10),
+      departureTime: tripData.departureTime ?? '12:00',
+      durationMinutes: tripData.durationMinutes ?? 120,
+      price: tripData.price ?? 500,
+      busType: tripData.busType ?? 'Standart',
+      rating: tripData.rating ?? 5.0,
+      seatsTotal: tripData.seatsTotal ?? 40,
+      seatLayout: tripData.seatLayout ?? '2+2',
+      isActive: true
+    };
+
+    db.trips.push(newTrip);
+    this.dataStore.saveData(db);
+    return { ok: true, trip: newTrip };
+  }
+
+  deleteTrip(adminToken: string, tripId: string) {
+    if (!this.dataStore.canAdminAccess(adminToken, accessRules.manageTrips)) {
+      return { ok: false, message: 'Yetkisiz islem' };
+    }
+
+    const db = this.dataStore.readData();
+    const tripIndex = db.trips.findIndex(t => t.id === tripId);
+    if (tripIndex === -1) return { ok: false, message: 'Sefer bulunamadı' };
+    
+    db.trips.splice(tripIndex, 1);
     this.dataStore.saveData(db);
     return { ok: true };
   }

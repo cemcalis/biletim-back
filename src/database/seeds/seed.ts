@@ -4,6 +4,7 @@ import { Company } from '../entities/company.entity';
 import { Route } from '../entities/route.entity';
 import { Trip } from '../entities/trip.entity';
 import { Seat, SeatStatus } from '../entities/seat.entity';
+import { Booking } from '../entities/booking.entity';
 
 const AppDataSource = new DataSource({
   type: 'mysql',
@@ -12,7 +13,7 @@ const AppDataSource = new DataSource({
   username: process.env.DB_USER || 'bustour_user',
   password: process.env.DB_PASSWORD || 'bustour_password',
   database: process.env.DB_NAME || 'bustour_db',
-  entities: [User, Company, Route, Trip, Seat],
+  entities: [User, Company, Route, Trip, Seat, Booking],
   synchronize: false,
 });
 
@@ -42,7 +43,7 @@ async function seed() {
       companyName: 'RedBus Travels',
       contactName: 'John Doe',
       email: 'company@redbusravels.com',
-      password: 'hashedpassword',
+      password: 'Company123!',
       vehicleCount: 5,
       isApproved: true,
       isActive: true,
@@ -98,7 +99,7 @@ async function seed() {
       id: '550e8400-e29b-41d4-a716-446655440004',
       name: 'Test User',
       email: 'user@example.com',
-      password: 'hashedpassword',
+      password: 'User123!',
       phone: '05001234567',
       isCompany: false,
     });
