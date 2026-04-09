@@ -1,5 +1,6 @@
 export type BookingStatus = 'Confirmed' | 'Completed' | 'Canceled';
 export type CompanyStatus = 'pending' | 'approved' | 'rejected';
+export type AdminRole = 'super-admin' | 'company-admin';
 
 export type RouteSummary = {
   from: string;

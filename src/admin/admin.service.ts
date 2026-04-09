@@ -1,13 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { DataStoreService } from '../common/data/data-store.service';
+import { AdminRole } from '../common/types';
+
+const accessRules: Record<string, AdminRole[]> = {
+  companyRequests: ['super-admin'],
+  approveCompany: ['super-admin'],
+};
 
 @Injectable()
 export class AdminService {
   constructor(private readonly dataStore: DataStoreService) {}
 
-  login(input: { username: string; password: string }) {
+  login(input: { username: string; password: string; role?: AdminRole }) {
     const username = input.username?.trim();
     const password = input.password?.trim();
+    const role = input.role ?? 'super-admin';
     const adminCredentials = this.dataStore.getAdminCredentials();
 
     if (
@@ -17,12 +24,12 @@ export class AdminService {
       return { ok: false, message: 'Yonetici giris bilgileri hatali' };
     }
 
-    const token = this.dataStore.addAdminSession();
-    return { ok: true, token };
+    const token = this.dataStore.addAdminSession(role);
+    return { ok: true, token, role };
   }
 
   getCompanyRequests(adminToken: string) {
-    if (!this.dataStore.isAdminTokenValid(adminToken)) {
+    if (!this.dataStore.canAdminAccess(adminToken, accessRules.companyRequests)) {
       return { ok: false, message: 'Yonetici oturumu gecersiz' };
     }
 
@@ -42,7 +49,7 @@ export class AdminService {
   }
 
   approveCompany(adminToken: string, companyId: string) {
-    if (!this.dataStore.isAdminTokenValid(adminToken)) {
+    if (!this.dataStore.canAdminAccess(adminToken, accessRules.approveCompany)) {
       return { ok: false, message: 'Yonetici oturumu gecersiz' };
     }
 

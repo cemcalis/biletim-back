@@ -8,6 +8,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { AdminRole } from '../common/types';
 
 @Controller('admin')
 export class AdminController {
@@ -19,7 +20,7 @@ export class AdminController {
   }
 
   @Post('login')
-  login(@Body() body: { username: string; password: string }) {
+  login(@Body() body: { username: string; password: string; role?: AdminRole }) {
     return this.adminService.login(body);
   }
 

@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
-import { BookingRecord, PersistedData, SeatInfo, Trip } from '../types';
+import { AdminRole, BookingRecord, PersistedData, SeatInfo, Trip } from '../types';
+
+type AdminSession = {
+  role: AdminRole;
+  createdAt: string;
+};
 
 @Injectable()
 export class DataStoreService {
@@ -9,7 +14,7 @@ export class DataStoreService {
 
   private readonly adminUser = 'admin';
   private readonly adminPass = 'Admin123!';
-  private readonly adminTokens = new Set<string>();
+  private readonly adminTokens = new Map<string, AdminSession>();
   private readonly companyTokens = new Map<string, string>();
 
   constructor() {
@@ -21,14 +26,30 @@ export class DataStoreService {
     return { username: this.adminUser, password: this.adminPass };
   }
 
-  addAdminSession(): string {
+  addAdminSession(role: AdminRole): string {
     const token = this.generateToken('ADM');
-    this.adminTokens.add(token);
+    this.adminTokens.set(token, {
+      role,
+      createdAt: new Date().toISOString(),
+    });
     return token;
   }
 
   isAdminTokenValid(token: string): boolean {
     return this.adminTokens.has(token);
+  }
+
+  getAdminSession(token: string): AdminSession | null {
+    return this.adminTokens.get(token) ?? null;
+  }
+
+  getAdminRole(token: string): AdminRole | null {
+    return this.getAdminSession(token)?.role ?? null;
+  }
+
+  canAdminAccess(token: string, allowedRoles: AdminRole[]): boolean {
+    const role = this.getAdminRole(token);
+    return role ? allowedRoles.includes(role) : false;
   }
 
   addCompanySession(companyId: string): string {

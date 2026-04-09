@@ -13,13 +13,18 @@ import { Seat } from './entities/seat.entity';
       type: 'mysql',
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '3306'),
-      username: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || 'password',
+      username: process.env.DB_USER || 'bustour_user',
+      password: process.env.DB_PASSWORD || 'bustour_password',
       database: process.env.DB_NAME || 'bustour_db',
       entities: [User, Route, Trip, Booking, Company, Seat],
-      synchronize: process.env.NODE_ENV === 'development',
+      synchronize:
+        process.env.DB_SYNCHRONIZE
+          ? process.env.DB_SYNCHRONIZE === 'true'
+          : process.env.NODE_ENV !== 'production',
       logging:
-        process.env.NODE_ENV === 'development'
+        process.env.DB_LOGGING
+          ? process.env.DB_LOGGING === 'true'
+          : process.env.NODE_ENV !== 'production'
           ? ['query', 'error', 'warn', 'info']
           : ['error'],
       dropSchema: false,
