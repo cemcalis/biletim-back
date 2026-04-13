@@ -1,25 +1,23 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { CompanyService } from './company.service';
+import {
+  CompanyAddTripDto,
+  CompanyAddVehicleDto,
+  CompanyLoginDto,
+  CompanyRegisterDto,
+} from './dto/company.dto';
 
 @Controller('company')
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
   @Post('register')
-  register(
-    @Body()
-    body: {
-      companyName: string;
-      contactName: string;
-      email: string;
-      password: string;
-    },
-  ) {
+  register(@Body() body: CompanyRegisterDto) {
     return this.companyService.register(body);
   }
 
   @Post('login')
-  login(@Body() body: { email: string; password: string }) {
+  login(@Body() body: CompanyLoginDto) {
     return this.companyService.login(body);
   }
 
@@ -34,16 +32,7 @@ export class CompanyController {
   }
 
   @Post('vehicles')
-  addVehicle(
-    @Body()
-    body: {
-      token: string;
-      plate: string;
-      busType: string;
-      seatLayout: '2+2' | '2+1' | '1+1';
-      seatRows: number;
-    },
-  ) {
+  addVehicle(@Body() body: CompanyAddVehicleDto) {
     return this.companyService.addVehicle(body.token, body);
   }
 
@@ -53,20 +42,7 @@ export class CompanyController {
   }
 
   @Post('trips')
-  addTrip(
-    @Body()
-    body: {
-      token: string;
-      from: string;
-      to: string;
-      departureDate: string;
-      arrivalDate: string;
-      departureTime: string;
-      durationMinutes: number;
-      price: number;
-      vehicleId: string;
-    },
-  ) {
+  addTrip(@Body() body: CompanyAddTripDto) {
     return this.companyService.addTrip(body.token, body);
   }
 }

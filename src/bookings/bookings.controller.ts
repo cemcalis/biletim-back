@@ -8,15 +8,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
-
-class CreateBookingDto {
-  tripId!: string;
-  passengerName!: string;
-  passengerEmail!: string;
-  seatNumber!: string;
-  passengers?: number;
-  travelDate?: string;
-}
+import { CreateBookingDto } from './dto/create-booking.dto';
 
 @Controller('bookings')
 export class BookingsController {
