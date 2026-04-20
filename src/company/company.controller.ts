@@ -6,6 +6,7 @@ import {
   CompanyLoginDto,
   CompanyRegisterDto,
 } from './dto/company.dto';
+import { CompanyTokenQueryDto } from './dto/company-query.dto';
 
 @Controller('company')
 export class CompanyController {
@@ -22,13 +23,13 @@ export class CompanyController {
   }
 
   @Get('overview')
-  getOverview(@Query('token') token: string) {
-    return this.companyService.getOverview(token);
+  getOverview(@Query() query: CompanyTokenQueryDto) {
+    return this.companyService.getOverview(query.token);
   }
 
   @Get('vehicles')
-  getVehicles(@Query('token') token: string) {
-    return this.companyService.getVehicles(token);
+  getVehicles(@Query() query: CompanyTokenQueryDto) {
+    return this.companyService.getVehicles(query.token);
   }
 
   @Post('vehicles')
@@ -37,8 +38,8 @@ export class CompanyController {
   }
 
   @Get('trips')
-  getTrips(@Query('token') token: string) {
-    return this.companyService.getTrips(token);
+  getTrips(@Query() query: CompanyTokenQueryDto) {
+    return this.companyService.getTrips(query.token);
   }
 
   @Post('trips')

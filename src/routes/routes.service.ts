@@ -1,19 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Route } from '../database/entities/route.entity';
+import { DataStoreService } from '../common/data/data-store.service';
 
 @Injectable()
 export class RoutesService {
-  constructor(
-    @InjectRepository(Route)
-    private readonly routeRepository: Repository<Route>,
-  ) {}
+  constructor(private readonly dataStore: DataStoreService) {}
 
-  async getRoutes() {
-    return await this.routeRepository.find({
-      where: { isActive: true },
-      order: { createdAt: 'DESC' },
-    });
+  getRoutes() {
+    const db = this.dataStore.readData();
+    return db.routes;
   }
 }

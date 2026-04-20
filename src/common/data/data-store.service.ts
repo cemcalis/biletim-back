@@ -1,21 +1,36 @@
 import { Injectable } from '@nestjs/common';
+import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { AdminRole, BookingRecord, PersistedData, SeatInfo, Trip } from '../types';
 
 type AdminSession = {
   role: AdminRole;
+  companyId?: string;
   createdAt: string;
+  expiresAt: number;
+};
+
+type SeatHold = {
+  holderId: string;
+  expiresAt: number;
 };
 
 @Injectable()
 export class DataStoreService {
   private readonly dataPath = this.resolveDataPath();
+  private readonly adminSessionTtlMs = Number(
+    process.env.ADMIN_SESSION_TTL_MS ?? 1000 * 60 * 60 * 8,
+  );
+  private readonly seatHoldTtlMs = Number(
+    process.env.SEAT_HOLD_TTL_MS ?? 1000 * 60 * 2,
+  );
 
   private readonly adminUser = 'admin';
-  private adminPass = 'Admin123!';
+  private adminPassHash = this.resolveAdminPasswordHash();
   private readonly adminTokens = new Map<string, AdminSession>();
   private readonly companyTokens = new Map<string, string>();
+  private readonly seatHolds = new Map<string, SeatHold>();
 
   constructor() {
     this.ensureDataStore();
@@ -23,27 +38,47 @@ export class DataStoreService {
   }
 
   getAdminCredentials() {
-    return { username: this.adminUser, password: this.adminPass };
+    return { username: this.adminUser };
+  }
+
+  verifyAdminPassword(password: string): boolean {
+    return this.verifySecret(this.adminPassHash, password);
   }
 
   updateAdminPassword(newPassword: string) {
-    this.adminPass = newPassword;
+    this.adminPassHash = this.hashSecret(newPassword);
   }
 
-  addAdminSession(role: AdminRole): string {
+  addAdminSession(role: AdminRole, companyId?: string): string {
     const token = this.generateToken('ADM');
     this.adminTokens.set(token, {
       role,
+      companyId,
       createdAt: new Date().toISOString(),
+      expiresAt: Date.now() + this.adminSessionTtlMs,
     });
     return token;
   }
 
   isAdminTokenValid(token: string): boolean {
-    return this.adminTokens.has(token);
+    const session = this.adminTokens.get(token);
+    if (!session) {
+      return false;
+    }
+
+    if (session.expiresAt < Date.now()) {
+      this.adminTokens.delete(token);
+      return false;
+    }
+
+    return true;
   }
 
   getAdminSession(token: string): AdminSession | null {
+    if (!this.isAdminTokenValid(token)) {
+      return null;
+    }
+
     return this.adminTokens.get(token) ?? null;
   }
 
@@ -85,6 +120,58 @@ export class DataStoreService {
     );
   }
 
+  holdSeat(tripId: string, seatNumber: string, holderId: string) {
+    this.cleanupExpiredSeatHolds();
+    const key = this.getSeatHoldKey(tripId, seatNumber);
+    const current = this.seatHolds.get(key);
+
+    if (current && current.holderId !== holderId) {
+      return {
+        ok: false,
+        message: 'Koltuk baska bir kullanici tarafindan secildi',
+      };
+    }
+
+    const expiresAt = Date.now() + this.seatHoldTtlMs;
+    this.seatHolds.set(key, { holderId, expiresAt });
+    return { ok: true, expiresAt };
+  }
+
+  releaseSeatHold(tripId: string, seatNumber: string, holderId?: string): void {
+    this.cleanupExpiredSeatHolds();
+    const key = this.getSeatHoldKey(tripId, seatNumber);
+    const current = this.seatHolds.get(key);
+    if (!current) {
+      return;
+    }
+
+    if (!holderId || current.holderId === holderId) {
+      this.seatHolds.delete(key);
+    }
+  }
+
+  isSeatHeldByAnother(
+    tripId: string,
+    seatNumber: string,
+    holderId: string,
+  ): boolean {
+    this.cleanupExpiredSeatHolds();
+    const key = this.getSeatHoldKey(tripId, seatNumber);
+    const hold = this.seatHolds.get(key);
+    return Boolean(hold && hold.holderId !== holderId);
+  }
+
+  getHeldSeats(tripId: string): Set<string> {
+    this.cleanupExpiredSeatHolds();
+    const heldSeats = new Set<string>();
+    for (const [key] of this.seatHolds) {
+      if (key.startsWith(`${tripId}:`)) {
+        heldSeats.add(key.slice(tripId.length + 1));
+      }
+    }
+    return heldSeats;
+  }
+
   private getLayoutColumns(layout: Trip['seatLayout']): string[] {
     if (layout === '2+1') {
       return ['A', 'B', 'C'];
@@ -114,6 +201,19 @@ export class DataStoreService {
     return seats;
   }
 
+  private getSeatHoldKey(tripId: string, seatNumber: string): string {
+    return `${tripId}:${seatNumber.trim().toUpperCase()}`;
+  }
+
+  private cleanupExpiredSeatHolds(): void {
+    const now = Date.now();
+    for (const [key, hold] of this.seatHolds.entries()) {
+      if (hold.expiresAt <= now) {
+        this.seatHolds.delete(key);
+      }
+    }
+  }
+
   private resolveDataPath(): string {
     const cwd = process.cwd();
     const localDataDir = join(cwd, 'data');
@@ -121,6 +221,33 @@ export class DataStoreService {
       return join(localDataDir, 'db.json');
     }
     return join(cwd, 'backend', 'data', 'db.json');
+  }
+
+  private resolveAdminPasswordHash(): string {
+    const envHash = process.env.ADMIN_PASSWORD_HASH?.trim();
+    if (envHash && envHash.includes(':')) {
+      return envHash;
+    }
+
+    const envPassword = process.env.ADMIN_PASSWORD?.trim() || 'Admin123!';
+    return this.hashSecret(envPassword);
+  }
+
+  private hashSecret(secret: string): string {
+    const salt = randomBytes(16).toString('hex');
+    const derivedKey = scryptSync(secret, salt, 64).toString('hex');
+    return `${salt}:${derivedKey}`;
+  }
+
+  private verifySecret(storedHash: string, secret: string): boolean {
+    const [salt, key] = storedHash.split(':');
+    if (!salt || !key) {
+      return false;
+    }
+
+    const derivedKey = scryptSync(secret, salt, 64);
+    const storedKey = Buffer.from(key, 'hex');
+    return timingSafeEqual(derivedKey, storedKey);
   }
 
   private ensureDataStore(): void {
@@ -134,6 +261,16 @@ export class DataStoreService {
     if (!existsSync(this.dataPath)) {
       const seededCompanyId = 'CMP-0001';
       const seed: PersistedData = {
+        cities: [
+          'Lefkoşa',
+          'Girne',
+          'Mağusa',
+          'Gazimağusa',
+          'Güzelyurt',
+          'Lefke',
+          'İskele',
+          'Gemikonağı',
+        ],
         routes: [
           // Kıbrıs Güzergahları - Ana Hatlar
           {
@@ -386,7 +523,14 @@ export class DataStoreService {
     const raw = JSON.parse(
       readFileSync(this.dataPath, 'utf-8'),
     ) as Partial<PersistedData>;
+    const routeCities = Array.from(
+      new Set(
+        (raw.routes ?? []).flatMap((route) => [route.from, route.to]),
+      ),
+    ).filter(Boolean);
     const db: PersistedData = {
+      cities:
+        Array.isArray(raw.cities) && raw.cities.length ? raw.cities : routeCities,
       routes: Array.isArray(raw.routes) ? raw.routes : [],
       trips: Array.isArray(raw.trips) ? raw.trips : [],
       bookings: Array.isArray(raw.bookings) ? raw.bookings : [],

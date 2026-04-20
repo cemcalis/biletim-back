@@ -2,7 +2,6 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ForgotPasswordDto,
-  GoogleAuthDto,
   LoginDto,
   RegisterDto,
   ResetPasswordDto,
@@ -23,8 +22,8 @@ export class AuthController {
   }
 
   @Post('google')
-  async google(@Body() body: GoogleAuthDto) {
-    return await this.authService.googleAuth(body);
+  async google(@Body('token') token: string) {
+    return await this.authService.googleAuth({ token });
   }
 
   @Post('forgot')

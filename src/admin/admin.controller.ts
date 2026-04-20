@@ -1,14 +1,24 @@
 import {
   AdminAddCompanyDto,
+  AdminAuditLogsQueryDto,
+  AdminBookingCodeParamDto,
   AdminChangePasswordDto,
+  AdminCompanyIdParamDto,
   AdminCreateRouteDto,
   AdminCreateTripDto,
   AdminCreateVehicleDto,
   AdminDeleteCompanyDto,
   AdminDeleteUserDto,
+  AdminExportReportQueryDto,
+  AdminGetBookingsQueryDto,
+  AdminIdParamDto,
   AdminLoginDto,
+  AdminPerformanceStatsQueryDto,
+  AdminRevenueReportQueryDto,
   AdminTokenDto,
+  AdminTokenQueryDto,
   AdminUpdateBookingStatusDto,
+  AdminUsersQueryDto,
 } from './dto/admin.dto';
 import {
   Body,
@@ -37,16 +47,16 @@ export class AdminController {
   }
 
   @Get('company-requests')
-  getCompanyRequests(@Query('token') token: string) {
-    return this.adminService.getCompanyRequests(token);
+  getCompanyRequests(@Query() query: AdminTokenQueryDto) {
+    return this.adminService.getCompanyRequests(query.token);
   }
 
   @Patch('company-requests/:companyId/approve')
   approveCompany(
-    @Param('companyId') companyId: string,
+    @Param() params: AdminCompanyIdParamDto,
     @Body() body: AdminTokenDto,
   ) {
-    return this.adminService.approveCompany(body.token, companyId);
+    return this.adminService.approveCompany(body.token, params.companyId);
   }
 
   @Post('trips')
@@ -54,14 +64,19 @@ export class AdminController {
     return this.adminService.createTrip(body.token, body.trip);
   }
 
+  @Get('trips')
+  getTrips(@Query() query: AdminTokenQueryDto) {
+    return this.adminService.getTrips(query.token);
+  }
+
   @Delete('trips/:id')
-  deleteTrip(@Param('id') id: string, @Body() body: AdminTokenDto) {
-    return this.adminService.deleteTrip(body.token, id);
+  deleteTrip(@Param() params: AdminIdParamDto, @Body() body: AdminTokenDto) {
+    return this.adminService.deleteTrip(body.token, params.id);
   }
 
   @Get('users')
-  getUsers(@Query('token') token: string) {
-    return this.adminService.getUsers(token);
+  getUsers(@Query() query: AdminUsersQueryDto) {
+    return this.adminService.getUsers(query.token, query);
   }
 
   @Post('users/delete')
@@ -70,8 +85,8 @@ export class AdminController {
   }
 
   @Get('companies')
-  getCompanies(@Query('token') token: string) {
-    return this.adminService.getCompanies(token);
+  getCompanies(@Query() query: AdminTokenQueryDto) {
+    return this.adminService.getCompanies(query.token);
   }
 
   @Post('companies')
@@ -95,8 +110,8 @@ export class AdminController {
 
   // Routes Management
   @Get('routes')
-  getRoutes(@Query('token') token: string) {
-    return this.adminService.getRoutes(token);
+  getRoutes(@Query() query: AdminTokenQueryDto) {
+    return this.adminService.getRoutes(query.token);
   }
 
   @Post('routes')
@@ -105,44 +120,41 @@ export class AdminController {
   }
 
   @Delete('routes/:id')
-  deleteRoute(
-    @Param('id') id: string,
-    @Body() body: AdminTokenDto,
-  ) {
-    return this.adminService.deleteRoute(body.token, id);
+  deleteRoute(@Param() params: AdminIdParamDto, @Body() body: AdminTokenDto) {
+    return this.adminService.deleteRoute(body.token, params.id);
   }
 
   // Bookings Management
   @Get('bookings')
-  getBookings(
-    @Query('token') token: string,
-    @Query('status') status?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-  ) {
+  getBookings(@Query() query: AdminGetBookingsQueryDto) {
+    const { token, status, startDate, endDate } = query;
     return this.adminService.getBookings(token, { status, startDate, endDate });
   }
 
   @Patch('bookings/:bookingCode/status')
   updateBookingStatus(
-    @Param('bookingCode') bookingCode: string,
+    @Param() params: AdminBookingCodeParamDto,
     @Body() body: AdminUpdateBookingStatusDto,
   ) {
-    return this.adminService.updateBookingStatus(body.token, bookingCode, body.status);
+    return this.adminService.updateBookingStatus(
+      body.token,
+      params.bookingCode,
+      body.status,
+    );
   }
 
   @Delete('bookings/:bookingCode')
   deleteBooking(
-    @Param('bookingCode') bookingCode: string,
+    @Param() params: AdminBookingCodeParamDto,
     @Body() body: AdminTokenDto,
   ) {
-    return this.adminService.deleteBooking(body.token, bookingCode);
+    return this.adminService.deleteBooking(body.token, params.bookingCode);
   }
 
   // Vehicles Management
   @Get('vehicles')
-  getVehicles(@Query('token') token: string) {
-    return this.adminService.getVehicles(token);
+  getVehicles(@Query() query: AdminTokenQueryDto) {
+    return this.adminService.getVehicles(query.token);
   }
 
   @Post('vehicles')
@@ -151,66 +163,60 @@ export class AdminController {
   }
 
   @Delete('vehicles/:id')
-  deleteVehicle(
-    @Param('id') id: string,
-    @Body() body: AdminTokenDto,
-  ) {
-    return this.adminService.deleteVehicle(body.token, id);
+  deleteVehicle(@Param() params: AdminIdParamDto, @Body() body: AdminTokenDto) {
+    return this.adminService.deleteVehicle(body.token, params.id);
   }
 
   // Reports & Analytics
   @Get('reports/revenue')
-  getRevenueReport(
-    @Query('token') token: string,
-    @Query('period') period: 'daily' | 'weekly' | 'monthly' | 'yearly',
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-  ) {
-    return this.adminService.getRevenueReport(token, period, startDate, endDate);
+  getRevenueReport(@Query() query: AdminRevenueReportQueryDto) {
+    return this.adminService.getRevenueReport(
+      query.token,
+      query.period,
+      query.startDate,
+      query.endDate,
+    );
   }
 
   @Get('reports/routes')
-  getRouteReport(@Query('token') token: string) {
-    return this.adminService.getRouteReport(token);
+  getRouteReport(@Query() query: AdminTokenQueryDto) {
+    return this.adminService.getRouteReport(query.token);
   }
 
   @Get('reports/companies')
-  getCompanyReport(@Query('token') token: string) {
-    return this.adminService.getCompanyReport(token);
+  getCompanyReport(@Query() query: AdminTokenQueryDto) {
+    return this.adminService.getCompanyReport(query.token);
   }
 
   @Get('reports/export')
-  exportReport(
-    @Query('token') token: string,
-    @Query('type') type: 'bookings' | 'revenue' | 'users',
-    @Query('format') format: 'csv' | 'json',
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-  ) {
-    return this.adminService.exportReport(token, type, format, startDate, endDate);
+  exportReport(@Query() query: AdminExportReportQueryDto) {
+    return this.adminService.exportReport(
+      query.token,
+      query.type,
+      query.format,
+      query.startDate,
+      query.endDate,
+    );
   }
 
   // Audit Logs
   @Get('audit-logs')
-  getAuditLogs(
-    @Query('token') token: string,
-    @Query('limit') limit?: number,
-    @Query('action') action?: string,
-  ) {
-    return this.adminService.getAuditLogs(token, limit, action);
+  getAuditLogs(@Query() query: AdminAuditLogsQueryDto) {
+    return this.adminService.getAuditLogs(
+      query.token,
+      query.limit,
+      query.action,
+    );
   }
 
   // Dashboard Detailed Stats
   @Get('stats/realtime')
-  getRealtimeStats(@Query('token') token: string) {
-    return this.adminService.getRealtimeStats(token);
+  getRealtimeStats(@Query() query: AdminTokenQueryDto) {
+    return this.adminService.getRealtimeStats(query.token);
   }
 
   @Get('stats/performance')
-  getPerformanceStats(
-    @Query('token') token: string,
-    @Query('days') days: number = 30,
-  ) {
-    return this.adminService.getPerformanceStats(token, days);
+  getPerformanceStats(@Query() query: AdminPerformanceStatsQueryDto) {
+    return this.adminService.getPerformanceStats(query.token, query.days ?? 30);
   }
 }

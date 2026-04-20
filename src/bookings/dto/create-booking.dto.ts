@@ -6,6 +6,8 @@ import {
   IsString,
   Matches,
   Min,
+  ArrayMinSize,
+  IsArray,
 } from 'class-validator';
 
 export class CreateBookingDto {
@@ -19,8 +21,24 @@ export class CreateBookingDto {
   passengerEmail!: string;
 
   @IsString()
-  @Matches(/^\d+[A-Z]$/i)
-  seatNumber!: string;
+  @Matches(/^\+?[0-9]{10,15}$/)
+  passengerPhone!: string;
+
+  @IsOptional()
+  @IsString()
+  holderId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  @Matches(/^([A-Z]+\d+|\d+[A-Z]+)$/i, { each: true })
+  seatNumbers?: string[];
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z]+\d+|\d+[A-Z]+)$/i)
+  seatNumber?: string;
 
   @IsOptional()
   @Type(() => Number)

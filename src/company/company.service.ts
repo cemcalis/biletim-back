@@ -1,10 +1,28 @@
 import { Injectable } from '@nestjs/common';
+import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { DataStoreService } from '../common/data/data-store.service';
 import { CompanyAccount, CompanyVehicle, Trip } from '../common/types';
 
 @Injectable()
 export class CompanyService {
   constructor(private readonly dataStore: DataStoreService) {}
+
+  private hashPassword(password: string): string {
+    const salt = randomBytes(16).toString('hex');
+    const derivedKey = scryptSync(password, salt, 64).toString('hex');
+    return `${salt}:${derivedKey}`;
+  }
+
+  private verifyPassword(storedPassword: string, password: string): boolean {
+    const [salt, key] = storedPassword.split(':');
+    if (!salt || !key) {
+      return false;
+    }
+
+    const derivedKey = scryptSync(password, salt, 64);
+    const storedKey = Buffer.from(key, 'hex');
+    return timingSafeEqual(derivedKey, storedKey);
+  }
 
   private getColumnsByLayout(layout: '2+2' | '2+1' | '1+1'): number {
     if (layout === '2+1') {
@@ -44,7 +62,7 @@ export class CompanyService {
       companyName: input.companyName.trim(),
       contactName: input.contactName.trim(),
       email,
-      password: input.password,
+      password: this.hashPassword(input.password.trim()),
       status: 'pending',
       createdAt: new Date().toISOString(),
     };
@@ -58,12 +76,22 @@ export class CompanyService {
     const db = this.dataStore.readData();
     const email = input.email.trim().toLowerCase();
     const company = db.companies.find((item) => item.email === email);
+    const passwordMatches = company
+      ? company.password.includes(':')
+        ? this.verifyPassword(company.password, input.password)
+        : company.password === input.password
+      : false;
 
-    if (!company || company.password !== input.password) {
+    if (!company || !passwordMatches) {
       return { ok: false, message: 'Firma giris bilgileri hatali' };
     }
     if (company.status !== 'approved') {
       return { ok: false, message: 'Firma hesabi henuz onaylanmadi' };
+    }
+
+    if (!company.password.includes(':')) {
+      company.password = this.hashPassword(input.password);
+      this.dataStore.saveData(db);
     }
 
     const token = this.dataStore.addCompanySession(company.id);
@@ -228,6 +256,7 @@ export class CompanyService {
       id: `TRP-${Date.now().toString().slice(-6)}`,
       companyId,
       company: company.companyName,
+      vehicleId: input.vehicleId,
       from: input.from.trim(),
       to: input.to.trim(),
       departureDate: input.departureDate.trim(),

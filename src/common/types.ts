@@ -14,6 +14,7 @@ export type Trip = {
   tripCode?: string;
   companyId: string;
   company: string;
+  vehicleId?: string;
   from: string;
   to: string;
   departureDate: string;
@@ -32,7 +33,10 @@ export type BookingInput = {
   tripId: string;
   passengerName: string;
   passengerEmail: string;
-  seatNumber: string;
+  passengerPhone: string;
+  holderId?: string;
+  seatNumber?: string;
+  seatNumbers?: string[];
   passengers?: number;
   travelDate?: string;
 };
@@ -45,6 +49,7 @@ export type BookingRecord = {
   seatNumber: string;
   passengerName: string;
   passengerEmail: string;
+  passengerPhone?: string;
   totalPrice: number;
   status: BookingStatus;
   passengers: number;
@@ -78,10 +83,11 @@ export type CompanyVehicle = {
 
 export type SeatInfo = {
   seatNumber: string;
-  status: 'available' | 'booked';
+  status: 'available' | 'booked' | 'held';
 };
 
 export type PersistedData = {
+  cities: string[];
   routes: RouteSummary[];
   trips: Trip[];
   bookings: BookingRecord[];

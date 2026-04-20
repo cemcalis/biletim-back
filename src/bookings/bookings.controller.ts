@@ -6,32 +6,46 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { UserAuthGuard } from '../auth/user-auth.guard';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import {
+  BookingCodeParamDto,
+  GetBookingsQueryDto,
+} from './dto/bookings-query.dto';
 
 @Controller('bookings')
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
+  @UseGuards(UserAuthGuard)
   @Get()
-  getBookings(@Query('passengerEmail') passengerEmail?: string) {
-    return this.bookingsService.getBookings(passengerEmail);
+  getBookings(
+    @Query() query: GetBookingsQueryDto,
+    @CurrentUser() user: { userId: string; email: string },
+  ) {
+    return this.bookingsService.getBookings(query.passengerEmail ?? user.email);
   }
 
+  @UseGuards(UserAuthGuard)
   @Get(':bookingCode')
-  getByCode(@Param('bookingCode') bookingCode: string) {
-    return this.bookingsService.getBookingByCode(bookingCode);
+  getByCode(@Param() params: BookingCodeParamDto) {
+    return this.bookingsService.getBookingByCode(params.bookingCode);
   }
 
+  @UseGuards(UserAuthGuard)
   @Get(':bookingCode/ticket')
-  getTicket(@Param('bookingCode') bookingCode: string) {
-    return this.bookingsService.getBookingTicket(bookingCode);
+  getTicket(@Param() params: BookingCodeParamDto) {
+    return this.bookingsService.getBookingTicket(params.bookingCode);
   }
 
+  @UseGuards(UserAuthGuard)
   @Patch(':bookingCode/cancel')
-  cancel(@Param('bookingCode') bookingCode: string) {
-    return this.bookingsService.cancelBooking(bookingCode);
+  cancel(@Param() params: BookingCodeParamDto) {
+    return this.bookingsService.cancelBooking(params.bookingCode);
   }
 
   @Post()

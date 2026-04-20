@@ -4,7 +4,26 @@ import { BookingInput, BookingRecord } from '../common/types';
 
 @Injectable()
 export class BookingsService {
+  private bookingCreationLock: Promise<void> = Promise.resolve();
+
   constructor(private readonly dataStore: DataStoreService) {}
+
+  private async withBookingCreationLock<T>(
+    operation: () => T | Promise<T>,
+  ): Promise<T> {
+    const previous = this.bookingCreationLock;
+    let release!: () => void;
+    this.bookingCreationLock = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
+  }
 
   getBookings(passengerEmail?: string): BookingRecord[] {
     const db = this.dataStore.readData();
@@ -55,6 +74,7 @@ export class BookingsService {
       content: [
         `Bilet: ${booking.bookingCode}`,
         `Yolcu: ${booking.passengerName}`,
+        `Telefon: ${booking.passengerPhone ?? '-'}`,
         `Rota: ${booking.route}`,
         `Firma: ${booking.company}`,
         `Koltuk: ${booking.seatNumber}`,
@@ -66,59 +86,111 @@ export class BookingsService {
     };
   }
 
-  createBooking(input: BookingInput) {
-    const db = this.dataStore.readData();
-    const trip = db.trips.find((item) => item.id === input.tripId);
-    if (!trip) {
-      return { ok: false, message: 'Sefer bulunamadı' };
-    }
+  async createBooking(input: BookingInput) {
+    return this.withBookingCreationLock(() => {
+      const db = this.dataStore.readData();
+      const trip = db.trips.find((item) => item.id === input.tripId);
+      if (!trip) {
+        return { ok: false, message: 'Sefer bulunamadı' };
+      }
 
-    const bookedSeats = this.dataStore.getBookedSeats(
-      db.bookings,
-      input.tripId,
-    );
-    const seats = this.dataStore.toSeats(trip, bookedSeats);
-    const seatExists = seats.some(
-      (seat) => seat.seatNumber === input.seatNumber,
-    );
-    if (!seatExists) {
-      return { ok: false, message: 'Geçersiz koltuk numarası' };
-    }
-    if (bookedSeats.has(input.seatNumber)) {
-      return { ok: false, message: 'Koltuk daha önce rezerve edilmiş' };
-    }
+      const passengerEmail = String(input.passengerEmail ?? '')
+        .trim()
+        .toLowerCase();
+      const passengerPhone = String(input.passengerPhone ?? '').trim();
+      const holderId = String(input.holderId ?? '').trim() || passengerEmail;
+      const rawSeats = input.seatNumbers?.length
+        ? input.seatNumbers
+        : input.seatNumber
+          ? [input.seatNumber]
+          : [];
+      const requestedSeats = Array.from(
+        new Set(
+          rawSeats
+            .filter(Boolean)
+            .map((seatNumber) => (seatNumber ?? '').trim().toUpperCase()),
+        ),
+      );
 
-    const bookingCode = `RB-${Date.now().toString().slice(-6)}`;
-    const passengers = Math.max(1, Number(input.passengers ?? 1));
-    const newBooking: BookingRecord = {
-      bookingCode,
-      tripId: trip.id,
-      route: `${trip.from} - ${trip.to}`,
-      company: trip.company,
-      seatNumber: input.seatNumber,
-      passengerName: input.passengerName.trim(),
-      passengerEmail: input.passengerEmail.trim().toLowerCase(),
-      totalPrice: trip.price * passengers,
-      status: 'Confirmed',
-      passengers,
-      travelDate: input.travelDate ?? new Date().toISOString().slice(0, 10),
-      departureTime: trip.departureTime,
-      arrivalTime: 'Tahmini',
-      createdAt: new Date().toISOString(),
-    };
+      if (requestedSeats.length === 0) {
+        return { ok: false, message: 'En az bir koltuk seçilmelidir' };
+      }
 
-    db.bookings.unshift(newBooking);
-    this.dataStore.saveData(db);
+      const bookedSeats = this.dataStore.getBookedSeats(
+        db.bookings,
+        input.tripId,
+      );
+      const seats = this.dataStore.toSeats(trip, bookedSeats);
 
-    return {
-      ok: true,
-      bookingCode: newBooking.bookingCode,
-      tripId: newBooking.tripId,
-      seatNumber: newBooking.seatNumber,
-      passengerName: newBooking.passengerName,
-      passengerEmail: newBooking.passengerEmail,
-      totalPrice: newBooking.totalPrice,
-      status: newBooking.status,
-    };
+      for (const seatNumber of requestedSeats) {
+        const seatExists = seats.some((seat) => seat.seatNumber === seatNumber);
+        if (!seatExists) {
+          return {
+            ok: false,
+            message: `Geçersiz koltuk numarası: ${seatNumber}`,
+          };
+        }
+        if (
+          this.dataStore.isSeatHeldByAnother(input.tripId, seatNumber, holderId)
+        ) {
+          return {
+            ok: false,
+            message: `Koltuk şu anda başka bir kullanıcı tarafından seçili: ${seatNumber}`,
+          };
+        }
+        if (bookedSeats.has(seatNumber)) {
+          return {
+            ok: false,
+            message: `Koltuk daha önce rezerve edilmiş: ${seatNumber}`,
+          };
+        }
+      }
+
+      const bookingCodePrefix = `RB-${Date.now().toString().slice(-8)}`;
+      const createdAt = new Date().toISOString();
+      const newBookings = requestedSeats.map((seatNumber, index) => ({
+        bookingCode:
+          requestedSeats.length === 1
+            ? bookingCodePrefix
+            : `${bookingCodePrefix}-${index + 1}`,
+        tripId: trip.id,
+        route: `${trip.from} - ${trip.to}`,
+        company: trip.company,
+        seatNumber,
+        passengerName: input.passengerName.trim(),
+        passengerEmail,
+        passengerPhone,
+        totalPrice: trip.price,
+        status: 'Confirmed' as const,
+        passengers: 1,
+        travelDate: input.travelDate ?? new Date().toISOString().slice(0, 10),
+        departureTime: trip.departureTime,
+        arrivalTime: 'Tahmini',
+        createdAt,
+      }));
+
+      db.bookings.unshift(...newBookings);
+      this.dataStore.saveData(db);
+      requestedSeats.forEach((seatNumber) => {
+        this.dataStore.releaseSeatHold(input.tripId, seatNumber, holderId);
+      });
+
+      return {
+        ok: true,
+        bookingCode: newBookings[0].bookingCode,
+        bookingCodes: newBookings.map((booking) => booking.bookingCode),
+        tripId: trip.id,
+        seatNumber: newBookings[0].seatNumber,
+        seatNumbers: requestedSeats,
+        passengerName: newBookings[0].passengerName,
+        passengerEmail: newBookings[0].passengerEmail,
+        passengerPhone: newBookings[0].passengerPhone,
+        totalPrice: newBookings.reduce(
+          (sum, booking) => sum + booking.totalPrice,
+          0,
+        ),
+        status: newBookings[0].status,
+      };
+    });
   }
 }

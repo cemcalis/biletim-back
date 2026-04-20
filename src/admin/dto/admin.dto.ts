@@ -1,5 +1,7 @@
 import { Type } from 'class-transformer';
 import {
+  IsDateString,
+  IsEmail,
   IsIn,
   IsInt,
   IsObject,
@@ -7,12 +9,37 @@ import {
   IsString,
   Min,
   MinLength,
+  IsUUID,
+  Max,
+  Matches,
   ValidateNested,
 } from 'class-validator';
 
 export class AdminTokenDto {
   @IsString()
+  @Matches(/^ADM-/)
   token!: string;
+}
+
+export class AdminTokenQueryDto {
+  @IsString()
+  @Matches(/^ADM-/)
+  token!: string;
+}
+
+export class AdminIdParamDto {
+  @IsString()
+  id!: string;
+}
+
+export class AdminCompanyIdParamDto {
+  @IsString()
+  companyId!: string;
+}
+
+export class AdminBookingCodeParamDto {
+  @IsString()
+  bookingCode!: string;
 }
 
 export class AdminLoginDto {
@@ -28,7 +55,7 @@ export class AdminLoginDto {
 }
 
 export class AdminDeleteUserDto extends AdminTokenDto {
-  @IsString()
+  @IsUUID()
   userId!: string;
 }
 
@@ -44,7 +71,7 @@ class AdminCompanyPayloadDto {
   @IsString()
   contactName!: string;
 
-  @IsString()
+  @IsEmail()
   email!: string;
 
   @IsOptional()
@@ -100,6 +127,100 @@ export class AdminUpdateBookingStatusDto extends AdminTokenDto {
   @IsString()
   @IsIn(['Confirmed', 'Completed', 'Canceled'])
   status!: string;
+}
+
+export class AdminGetBookingsQueryDto extends AdminTokenQueryDto {
+  @IsOptional()
+  @IsIn(['Confirmed', 'Completed', 'Canceled'])
+  status?: string;
+
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+}
+
+export class AdminUsersQueryDto extends AdminTokenQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsIn(['name', 'email', 'createdAt'])
+  sortBy?: 'name' | 'email' | 'createdAt';
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc';
+
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  isCompany?: 'true' | 'false';
+}
+
+export class AdminRevenueReportQueryDto extends AdminTokenQueryDto {
+  @IsIn(['daily', 'weekly', 'monthly', 'yearly'])
+  period!: 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+}
+
+export class AdminExportReportQueryDto extends AdminTokenQueryDto {
+  @IsIn(['bookings', 'revenue', 'users'])
+  type!: 'bookings' | 'revenue' | 'users';
+
+  @IsIn(['csv', 'json'])
+  format!: 'csv' | 'json';
+
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+}
+
+export class AdminAuditLogsQueryDto extends AdminTokenQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number;
+
+  @IsOptional()
+  @IsString()
+  action?: string;
+}
+
+export class AdminPerformanceStatsQueryDto extends AdminTokenQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  days?: number;
 }
 
 class AdminVehiclePayloadDto {

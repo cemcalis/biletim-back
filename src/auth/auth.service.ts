@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,7 +13,14 @@ import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class AuthService {
-  private googleClient: OAuth2Client;
+  private googleClient: any;
+  private readonly userSessions = new Map<
+    string,
+    { userId: string; email: string; expiresAt: number }
+  >();
+  private readonly accessTokenTtlMs = Number(
+    process.env.ACCESS_TOKEN_TTL_MS ?? 1000 * 60 * 60 * 24,
+  );
   private passwordResetTokens = new Map<
     string,
     { userId: string; expiresAt: number }
@@ -52,9 +60,10 @@ export class AuthService {
     });
 
     const saved = await this.userRepository.save(created);
+    const accessToken = this.createToken(saved.id, saved.email);
 
     return {
-      access_token: this.createToken(),
+      access_token: accessToken,
       user: {
         id: saved.id,
         name: saved.name,
@@ -87,8 +96,10 @@ export class AuthService {
       await this.userRepository.save(user);
     }
 
+    const accessToken = this.createToken(user.id, user.email);
+
     return {
-      access_token: this.createToken(),
+      access_token: accessToken,
       user: {
         id: user.id,
         name: user.name,
@@ -105,17 +116,19 @@ export class AuthService {
     }
 
     try {
-      const ticket = await this.googleClient.verifyIdToken({
+      const ticket: any = await this.googleClient.verifyIdToken({
         idToken: token,
         audience: process.env.GOOGLE_CLIENT_ID || '',
       });
 
-      const payload = ticket.getPayload();
+      const payload = ticket.getPayload() as
+        | { email?: string; name?: string }
+        | undefined;
       if (!payload) {
         throw new UnauthorizedException('Geçersiz Google token');
       }
 
-      const email = payload.email?.toLowerCase().trim();
+      const email = (payload.email ?? '').toLowerCase().trim();
       const name = payload.name || payload.email || 'Google User';
 
       if (!email) {
@@ -128,14 +141,16 @@ export class AuthService {
         user = this.userRepository.create({
           name,
           email,
-          password: '', // No password for Google auth
+          password: '',
           isCompany: false,
         });
         user = await this.userRepository.save(user);
       }
 
+      const accessToken = this.createToken(user.id, user.email);
+
       return {
-        access_token: this.createToken(),
+        access_token: accessToken,
         user: {
           id: user.id,
           name: user.name,
@@ -165,8 +180,41 @@ export class AuthService {
     return timingSafeEqual(derivedKey, storedKey);
   }
 
-  private createToken(): string {
-    return randomBytes(32).toString('hex');
+  private createToken(userId: string, email: string): string {
+    const token = randomBytes(32).toString('hex');
+    this.userSessions.set(token, {
+      userId,
+      email,
+      expiresAt: Date.now() + this.accessTokenTtlMs,
+    });
+    return token;
+  }
+
+  validateAccessToken(token: string): { userId: string; email: string } | null {
+    const session = this.userSessions.get(token);
+    if (!session) {
+      return null;
+    }
+
+    if (session.expiresAt < Date.now()) {
+      this.userSessions.delete(token);
+      return null;
+    }
+
+    return { userId: session.userId, email: session.email };
+  }
+
+  async getUserProfile(userId: string) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'name', 'email', 'isCompany', 'createdAt'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('Kullanici bulunamadi');
+    }
+
+    return user;
   }
 
   async forgotPassword(input: { email: string }) {
@@ -178,17 +226,16 @@ export class AuthService {
 
     const user = await this.userRepository.findOne({ where: { email } });
     if (!user) {
-      // Don't reveal if user exists
-      return { message: 'Sifre sifirlama baglantisi e-posta adresinize gonderildi' };
+      return {
+        message: 'Sifre sifirlama baglantisi e-posta adresinize gonderildi',
+      };
     }
 
-    // Generate reset token
     const resetToken = randomBytes(32).toString('hex');
     const expiresAt = Date.now() + 3600000; // 1 hour
 
     this.passwordResetTokens.set(resetToken, { userId: user.id, expiresAt });
 
-    // Send email (simplified - in production, use actual SMTP)
     const smtpHost = process.env.SMTP_HOST;
     const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
     const smtpUser = process.env.SMTP_USER;
@@ -224,7 +271,9 @@ export class AuthService {
       }
     }
 
-    return { message: 'Sifre sifirlama baglantisi e-posta adresinize gonderildi' };
+    return {
+      message: 'Sifre sifirlama baglantisi e-posta adresinize gonderildi',
+    };
   }
 
   async resetPassword(input: { token: string; password: string }) {
@@ -243,7 +292,9 @@ export class AuthService {
       throw new BadRequestException('Gecersiz veya suresi dolmus token');
     }
 
-    const user = await this.userRepository.findOne({ where: { id: resetData.userId } });
+    const user = await this.userRepository.findOne({
+      where: { id: resetData.userId },
+    });
     if (!user) {
       throw new BadRequestException('Kullanici bulunamadi');
     }
