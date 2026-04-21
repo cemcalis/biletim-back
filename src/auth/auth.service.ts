@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -12,7 +13,7 @@ import { User } from '../database/entities/user.entity';
 import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleDestroy {
   private googleClient: any;
   private readonly userSessions = new Map<
     string,
@@ -25,6 +26,7 @@ export class AuthService {
     string,
     { userId: string; expiresAt: number }
   >();
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     @InjectRepository(User)
@@ -32,6 +34,14 @@ export class AuthService {
   ) {
     const googleClientId = process.env.GOOGLE_CLIENT_ID || '';
     this.googleClient = new OAuth2Client(googleClientId);
+    this.cleanupTimer = setInterval(() => this.cleanupExpiredTokens(), 60000);
+  }
+
+  onModuleDestroy() {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
   }
 
   async register(input: { name: string; email: string; password: string }) {
@@ -43,8 +53,10 @@ export class AuthService {
       throw new BadRequestException('Tum alanlar zorunludur');
     }
 
-    if (password.length < 6) {
-      throw new BadRequestException('Sifre en az 6 karakter olmalidir');
+    if (!this.isStrongPassword(password)) {
+      throw new BadRequestException(
+        'Sifre en az 8 karakter olmalı ve harf ile rakam icermelidir',
+      );
     }
 
     const existing = await this.userRepository.findOne({ where: { email } });
@@ -110,15 +122,20 @@ export class AuthService {
 
   async googleAuth(input: { token: string }) {
     const token = input.token?.trim();
+    const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
 
     if (!token) {
       throw new BadRequestException('Google token zorunludur');
     }
 
+    if (!googleClientId) {
+      throw new BadRequestException('GOOGLE_CLIENT_ID ayarı eksik');
+    }
+
     try {
       const ticket: any = await this.googleClient.verifyIdToken({
         idToken: token,
-        audience: process.env.GOOGLE_CLIENT_ID || '',
+        audience: googleClientId,
       });
 
       const payload = ticket.getPayload() as
@@ -157,9 +174,19 @@ export class AuthService {
           email: user.email,
         },
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Google auth verification failed:', error);
-      throw new UnauthorizedException('Google kimlik dogrulama basarisiz');
+      // Provide more specific error message based on the error type
+      if (error.message?.includes('expired')) {
+        throw new UnauthorizedException('Google token suresi dolmus, lutfen tekrar deneyin');
+      }
+      if (error.message?.includes('invalid')) {
+        throw new UnauthorizedException('Gecersiz Google token');
+      }
+      if (!process.env.GOOGLE_CLIENT_ID) {
+        throw new UnauthorizedException('Sunucu Google Client ID ayari eksik');
+      }
+      throw new UnauthorizedException('Google kimlik dogrulama basarisiz: ' + (error.message || 'Bilinmeyen hata'));
     }
   }
 
@@ -283,8 +310,10 @@ export class AuthService {
       throw new BadRequestException('Token ve sifre zorunludur');
     }
 
-    if (password.length < 6) {
-      throw new BadRequestException('Sifre en az 6 karakter olmalidir');
+    if (!this.isStrongPassword(password)) {
+      throw new BadRequestException(
+        'Sifre en az 8 karakter olmalı ve harf ile rakam icermelidir',
+      );
     }
 
     const resetData = this.passwordResetTokens.get(token);
@@ -301,10 +330,135 @@ export class AuthService {
 
     user.password = this.hashPassword(password);
     await this.userRepository.save(user);
+    this.revokeSessionsByUserId(user.id);
 
     // Remove used token
     this.passwordResetTokens.delete(token);
 
     return { message: 'Sifreniz basariyla guncellendi' };
+  }
+
+  async changeUserPassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Kullanici bulunamadi');
+    }
+
+    const currentMatches = user.password.includes(':')
+      ? this.verifyPassword(user.password, currentPassword)
+      : user.password === currentPassword;
+
+    if (!currentMatches) {
+      throw new UnauthorizedException('Mevcut sifre hatali');
+    }
+
+    if (!this.isStrongPassword(newPassword)) {
+      throw new BadRequestException(
+        'Sifre en az 8 karakter olmalı ve harf ile rakam icermelidir',
+      );
+    }
+
+    user.password = this.hashPassword(newPassword);
+    await this.userRepository.save(user);
+    this.revokeSessionsByUserId(user.id);
+  }
+
+  async getProfile(userId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Kullanici bulunamadi');
+    }
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      isCompany: user.isCompany,
+      createdAt: user.createdAt,
+    };
+  }
+
+  async updateProfile(userId: string, input: { name?: string; email?: string; phone?: string }) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Kullanici bulunamadi');
+    }
+
+    if (input.name !== undefined) {
+      const name = input.name?.trim();
+      if (!name || name.length < 2) {
+        throw new BadRequestException('Ad en az 2 karakter olmalidir');
+      }
+      user.name = name;
+    }
+
+    if (input.phone !== undefined) {
+      const phone = input.phone?.trim() || '';
+      user.phone = phone;
+    }
+
+    if (input.email !== undefined) {
+      const email = input.email?.trim().toLowerCase();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new BadRequestException('Gecerli bir e-posta adresi giriniz');
+      }
+      // Check if email already exists for another user
+      const existingUser = await this.userRepository.findOne({ where: { email } });
+      if (existingUser && existingUser.id !== userId) {
+        throw new BadRequestException('Bu e-posta adresi baska bir kullanici tarafindan kullaniliyor');
+      }
+      user.email = email;
+    }
+
+    await this.userRepository.save(user);
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      isCompany: user.isCompany,
+    };
+  }
+
+  logout(tokenOrHeader: string) {
+    const token = tokenOrHeader.replace(/^Bearer\s+/i, '').trim();
+    if (!token) {
+      return { ok: false, message: 'Token zorunludur' };
+    }
+
+    return { ok: this.userSessions.delete(token) };
+  }
+
+  private cleanupExpiredTokens() {
+    const now = Date.now();
+
+    for (const [token, session] of this.userSessions.entries()) {
+      if (session.expiresAt <= now) {
+        this.userSessions.delete(token);
+      }
+    }
+
+    for (const [token, reset] of this.passwordResetTokens.entries()) {
+      if (reset.expiresAt <= now) {
+        this.passwordResetTokens.delete(token);
+      }
+    }
+  }
+
+  private revokeSessionsByUserId(userId: string) {
+    for (const [token, session] of this.userSessions.entries()) {
+      if (session.userId === userId) {
+        this.userSessions.delete(token);
+      }
+    }
+  }
+
+  private isStrongPassword(password: string) {
+    return /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password);
   }
 }

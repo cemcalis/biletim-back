@@ -1,5 +1,6 @@
 export type BookingStatus = 'Confirmed' | 'Completed' | 'Canceled';
 export type CompanyStatus = 'pending' | 'approved' | 'rejected';
+export type TripApprovalStatus = 'pending' | 'approved' | 'rejected';
 export type AdminRole = 'super-admin' | 'company-admin';
 
 export type RouteSummary = {
@@ -27,6 +28,8 @@ export type Trip = {
   seatsTotal: number;
   seatLayout: '2+2' | '2+1' | '1+1';
   isActive?: boolean;
+  approvalStatus?: TripApprovalStatus;
+  createdAt?: string;
 };
 
 export type BookingInput = {

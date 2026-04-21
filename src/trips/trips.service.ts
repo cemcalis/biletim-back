@@ -13,12 +13,14 @@ export class TripsService {
     const db = this.dataStore.readData();
     return db.trips
       .filter((trip) => {
+        // Only show approved trips to public
+        const isApproved = trip.approvalStatus === 'approved';
         const matchFrom = from
           ? trip.from.toLowerCase() === from.toLowerCase()
           : true;
         const matchTo = to ? trip.to.toLowerCase() === to.toLowerCase() : true;
         const matchDate = date ? trip.departureDate === date : true;
-        return matchFrom && matchTo && matchDate;
+        return isApproved && matchFrom && matchTo && matchDate;
       })
       .map((trip) => {
         const bookedSeats = this.dataStore.getBookedSeats(db.bookings, trip.id);

@@ -7,6 +7,10 @@ import { CompanyAccount, CompanyVehicle, Trip } from '../common/types';
 export class CompanyService {
   constructor(private readonly dataStore: DataStoreService) {}
 
+  private isStrongPassword(password: string): boolean {
+    return /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password);
+  }
+
   private hashPassword(password: string): string {
     const salt = randomBytes(16).toString('hex');
     const derivedKey = scryptSync(password, salt, 64).toString('hex');
@@ -47,9 +51,12 @@ export class CompanyService {
       !input.companyName.trim() ||
       !input.contactName.trim() ||
       !email ||
-      !input.password.trim()
+      !this.isStrongPassword(input.password.trim())
     ) {
-      return { ok: false, message: 'Tum alanlar zorunludur' };
+      return {
+        ok: false,
+        message: 'Tum alanlar zorunludur ve sifre en az 8 karakter olmalidir',
+      };
     }
 
     const exists = db.companies.find((item) => item.email === email);
@@ -254,6 +261,7 @@ export class CompanyService {
 
     const trip: Trip = {
       id: `TRP-${Date.now().toString().slice(-6)}`,
+      tripCode: `EXP-${Math.floor(Math.random() * 1000)}`,
       companyId,
       company: company.companyName,
       vehicleId: input.vehicleId,
@@ -268,6 +276,9 @@ export class CompanyService {
       rating: 4.0,
       seatsTotal: vehicle.seatsTotal,
       seatLayout: vehicle.seatLayout,
+      isActive: true,
+      approvalStatus: 'pending',
+      createdAt: new Date().toISOString(),
     };
 
     if (

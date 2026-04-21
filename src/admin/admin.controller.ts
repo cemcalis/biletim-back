@@ -1,5 +1,6 @@
 import {
   AdminAddCompanyDto,
+  AdminApproveTripDto,
   AdminAuditLogsQueryDto,
   AdminBookingCodeParamDto,
   AdminChangePasswordDto,
@@ -18,6 +19,7 @@ import {
   AdminTokenDto,
   AdminTokenQueryDto,
   AdminUpdateBookingStatusDto,
+  AdminUpdateUserDto,
   AdminUsersQueryDto,
 } from './dto/admin.dto';
 import {
@@ -74,6 +76,19 @@ export class AdminController {
     return this.adminService.deleteTrip(body.token, params.id);
   }
 
+  @Get('trips/pending')
+  getPendingTrips(@Query() query: AdminTokenQueryDto) {
+    return this.adminService.getPendingTrips(query.token);
+  }
+
+  @Patch('trips/:tripId/approve')
+  approveTrip(
+    @Param('tripId') tripId: string,
+    @Body() body: AdminApproveTripDto,
+  ) {
+    return this.adminService.approveTrip(body.token, tripId, body.status);
+  }
+
   @Get('users')
   getUsers(@Query() query: AdminUsersQueryDto) {
     return this.adminService.getUsers(query.token, query);
@@ -82,6 +97,18 @@ export class AdminController {
   @Post('users/delete')
   deleteUser(@Body() body: AdminDeleteUserDto) {
     return this.adminService.deleteUser(body.token, body.userId);
+  }
+
+  @Patch('users/:userId')
+  updateUser(
+    @Param('userId') userId: string,
+    @Body() body: AdminUpdateUserDto,
+  ) {
+    return this.adminService.updateUser(body.token, userId, {
+      name: body.name,
+      email: body.email,
+      phone: body.phone,
+    });
   }
 
   @Get('companies')

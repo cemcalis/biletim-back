@@ -67,8 +67,6 @@ export class AdminService {
         );
         return { ok: false, message: 'Firma giris bilgileri hatali' };
       }
-
-      // Upgrade old plaintext company passwords after first successful login.
       if (!company.password.includes(':')) {
         company.password = this.hashPassword(password);
         this.dataStore.saveData(db);
@@ -223,6 +221,60 @@ export class AdminService {
     });
   }
 
+  async updateUser(
+    adminToken: string,
+    userId: string,
+    data: { name?: string; email?: string; phone?: string },
+  ) {
+    if (!this.dataStore.canAdminAccess(adminToken, accessRules.manageUsers)) {
+      return { ok: false, message: 'Yonetici oturumu gecersiz' };
+    }
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      return { ok: false, message: 'Kullanici bulunamadi' };
+    }
+
+    if (data.name !== undefined) {
+      const name = data.name?.trim();
+      if (!name || name.length < 2) {
+        return { ok: false, message: 'Ad en az 2 karakter olmalidir' };
+      }
+      user.name = name;
+    }
+
+    if (data.phone !== undefined) {
+      user.phone = data.phone?.trim() || '';
+    }
+
+    if (data.email !== undefined) {
+      const email = data.email?.trim().toLowerCase();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return { ok: false, message: 'Gecerli bir e-posta adresi giriniz' };
+      }
+      // Check if email already exists for another user
+      const existingUser = await this.userRepository.findOne({ where: { email } });
+      if (existingUser && existingUser.id !== userId) {
+        return { ok: false, message: 'Bu e-posta adresi baska bir kullanici tarafindan kullaniliyor' };
+      }
+      user.email = email;
+    }
+
+    await this.userRepository.save(user);
+    this.logger.log(`Admin updated user ${userId}: ${JSON.stringify(data)}`);
+
+    return {
+      ok: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        isCompany: user.isCompany,
+      },
+    };
+  }
+
   getCompanies(adminToken: string) {
     if (
       !this.dataStore.canAdminAccess(adminToken, accessRules.companyRequests)
@@ -298,8 +350,12 @@ export class AdminService {
       return { ok: false, message: 'Mevcut sifre hatali' };
     }
 
-    if (!newPassword || newPassword.length < 6) {
-      return { ok: false, message: 'Yeni sifre en az 6 karakter olmalidir' };
+    if (!newPassword || !/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(newPassword)) {
+      return {
+        ok: false,
+        message:
+          'Yeni sifre en az 8 karakter olmalı ve harf ile rakam icermelidir',
+      };
     }
 
     this.dataStore.updateAdminPassword(newPassword);
@@ -313,7 +369,37 @@ export class AdminService {
 
     const db = this.dataStore.readData();
     const session = this.dataStore.getAdminSession(adminToken);
-    const scopedCompanyId = session?.role === 'company-admin' ? session.companyId : undefined;
+    const scopedCompanyId =
+      session?.role === 'company-admin' ? session.companyId : undefined;
+    const selectedCompany =
+      (tripData.companyId
+        ? db.companies.find((item) => item.id === tripData.companyId)
+        : undefined) ??
+      (scopedCompanyId
+        ? db.companies.find((item) => item.id === scopedCompanyId)
+        : undefined) ??
+      db.companies.find((item) => item.status === 'approved') ??
+      db.companies[0];
+
+    const selectedVehicle =
+      (tripData.vehicleId
+        ? db.vehicles.find((item) => item.id === tripData.vehicleId)
+        : undefined) ??
+      (selectedCompany
+        ? db.vehicles.find((item) => item.companyId === selectedCompany.id)
+        : undefined);
+
+    if (scopedCompanyId && selectedCompany?.id !== scopedCompanyId) {
+      return {
+        ok: false,
+        message: 'Bu firma icin sefer olusturma yetkiniz yok',
+      };
+    }
+
+    if (scopedCompanyId && selectedVehicle?.companyId !== scopedCompanyId) {
+      return { ok: false, message: 'Bu araci kullanma yetkiniz yok' };
+    }
+
     const approvedCompany =
       (scopedCompanyId
         ? db.companies.find((item) => item.id === scopedCompanyId)
@@ -321,11 +407,19 @@ export class AdminService {
       db.companies.find((item) => item.status === 'approved') ??
       db.companies[0];
 
+    const isSuperAdmin = session?.role === 'super-admin';
+    const approvalStatus = isSuperAdmin ? 'approved' : 'pending';
+
     const newTrip: Trip = {
       id: `TRP-${Date.now().toString().slice(-4)}`,
       tripCode: tripData.tripCode ?? `EXP-${Math.floor(Math.random() * 1000)}`,
-      companyId: approvedCompany?.id ?? 'CMP-0000',
-      company: tripData.company ?? approvedCompany?.companyName ?? 'Near East Way Seferleri',
+      companyId: selectedCompany?.id ?? approvedCompany?.id ?? 'CMP-0000',
+      company:
+        tripData.company ??
+        selectedCompany?.companyName ??
+        approvedCompany?.companyName ??
+        'Near East Way Seferleri',
+      vehicleId: selectedVehicle?.id,
       from: tripData.from ?? 'Ankara',
       to: tripData.to ?? 'İstanbul',
       departureDate:
@@ -335,11 +429,13 @@ export class AdminService {
       departureTime: tripData.departureTime ?? '12:00',
       durationMinutes: tripData.durationMinutes ?? 120,
       price: tripData.price ?? 500,
-      busType: tripData.busType ?? 'Standart',
+      busType: tripData.busType ?? selectedVehicle?.busType ?? 'Standart',
       rating: tripData.rating ?? 5.0,
-      seatsTotal: tripData.seatsTotal ?? 40,
-      seatLayout: tripData.seatLayout ?? '2+2',
+      seatsTotal: tripData.seatsTotal ?? selectedVehicle?.seatsTotal ?? 40,
+      seatLayout: tripData.seatLayout ?? selectedVehicle?.seatLayout ?? '2+2',
       isActive: true,
+      approvalStatus,
+      createdAt: new Date().toISOString(),
     };
 
     db.trips.push(newTrip);
@@ -383,6 +479,32 @@ export class AdminService {
     db.trips.splice(tripIndex, 1);
     this.dataStore.saveData(db);
     return { ok: true };
+  }
+
+  approveTrip(adminToken: string, tripId: string, status: 'approved' | 'rejected') {
+    // Only super-admin can approve/reject trips
+    if (!this.dataStore.canAdminAccess(adminToken, ['super-admin'])) {
+      return { ok: false, message: 'Yetkisiz islem' };
+    }
+
+    const db = this.dataStore.readData();
+    const tripIndex = db.trips.findIndex((t) => t.id === tripId);
+    if (tripIndex === -1) return { ok: false, message: 'Sefer bulunamadi' };
+
+    db.trips[tripIndex].approvalStatus = status;
+    this.dataStore.saveData(db);
+    return { ok: true, trip: db.trips[tripIndex] };
+  }
+
+  getPendingTrips(adminToken: string) {
+    // Only super-admin can view pending trips
+    if (!this.dataStore.canAdminAccess(adminToken, ['super-admin'])) {
+      return { ok: false, message: 'Yetkisiz islem' };
+    }
+
+    const db = this.dataStore.readData();
+    const pendingTrips = db.trips.filter((t) => t.approvalStatus === 'pending');
+    return { ok: true, trips: pendingTrips };
   }
 
   getOverview() {
@@ -828,7 +950,8 @@ export class AdminService {
       stats.trips += 1;
       const routeLabel = `${t.from} - ${t.to}`;
       const vehicleLabel =
-        (t.vehicleId && db.vehicles.find((vehicle) => vehicle.id === t.vehicleId)?.plate) ||
+        (t.vehicleId &&
+          db.vehicles.find((vehicle) => vehicle.id === t.vehicleId)?.plate) ||
         t.busType ||
         'Belirsiz araç';
 
@@ -868,7 +991,9 @@ export class AdminService {
           bookings: 0,
           passengers: 0,
           vehicle:
-            (trip.vehicleId && db.vehicles.find((vehicle) => vehicle.id === trip.vehicleId)?.plate) ||
+            (trip.vehicleId &&
+              db.vehicles.find((vehicle) => vehicle.id === trip.vehicleId)
+                ?.plate) ||
             trip.busType ||
             'Belirsiz araç',
         };

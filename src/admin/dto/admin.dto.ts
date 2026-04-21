@@ -59,6 +59,24 @@ export class AdminDeleteUserDto extends AdminTokenDto {
   userId!: string;
 }
 
+export class AdminUpdateUserDto extends AdminTokenDto {
+  @IsUUID()
+  userId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  name?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+}
+
 export class AdminDeleteCompanyDto extends AdminTokenDto {
   @IsString()
   companyId!: string;
@@ -90,7 +108,7 @@ export class AdminChangePasswordDto extends AdminTokenDto {
   currentPassword!: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
   newPassword!: string;
 }
 
@@ -247,4 +265,10 @@ export class AdminCreateVehicleDto extends AdminTokenDto {
   @ValidateNested()
   @Type(() => AdminVehiclePayloadDto)
   vehicle!: AdminVehiclePayloadDto;
+}
+
+export class AdminApproveTripDto extends AdminTokenDto {
+  @IsString()
+  @IsIn(['approved', 'rejected'])
+  status!: 'approved' | 'rejected';
 }

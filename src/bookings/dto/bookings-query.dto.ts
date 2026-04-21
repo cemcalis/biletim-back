@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsString } from 'class-validator';
 
 export class BookingCodeParamDto {
   @IsString()
@@ -6,7 +6,6 @@ export class BookingCodeParamDto {
 }
 
 export class GetBookingsQueryDto {
-  @IsOptional()
   @IsEmail()
   passengerEmail?: string;
 }

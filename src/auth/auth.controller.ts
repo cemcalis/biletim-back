@@ -1,5 +1,7 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Patch, Post, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { UserAuthGuard } from './user-auth.guard';
+import { CurrentUser } from './current-user.decorator';
 import {
   ForgotPasswordDto,
   LoginDto,
@@ -34,5 +36,25 @@ export class AuthController {
   @Post('reset')
   async resetPassword(@Body() body: ResetPasswordDto) {
     return await this.authService.resetPassword(body);
+  }
+
+  @Post('logout')
+  async logout(@Headers('authorization') authorization?: string) {
+    return this.authService.logout(authorization ?? '');
+  }
+
+  @Get('profile')
+  @UseGuards(UserAuthGuard)
+  async getProfile(@CurrentUser() user: { userId: string }) {
+    return this.authService.getProfile(user.userId);
+  }
+
+  @Patch('profile')
+  @UseGuards(UserAuthGuard)
+  async updateProfile(
+    @CurrentUser() user: { userId: string },
+    @Body() body: { name?: string; email?: string; phone?: string },
+  ) {
+    return this.authService.updateProfile(user.userId, body);
   }
 }

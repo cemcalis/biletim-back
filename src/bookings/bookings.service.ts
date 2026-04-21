@@ -26,6 +26,10 @@ export class BookingsService {
   }
 
   getBookings(passengerEmail?: string): BookingRecord[] {
+    if (!passengerEmail?.trim()) {
+      return [];
+    }
+
     const db = this.dataStore.readData();
     const normalizedEmail = passengerEmail?.trim().toLowerCase();
     return db.bookings

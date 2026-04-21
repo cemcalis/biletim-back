@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -21,13 +22,13 @@ import {
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
-  @UseGuards(UserAuthGuard)
   @Get()
-  getBookings(
-    @Query() query: GetBookingsQueryDto,
-    @CurrentUser() user: { userId: string; email: string },
-  ) {
-    return this.bookingsService.getBookings(query.passengerEmail ?? user.email);
+  getBookings(@Query() query: GetBookingsQueryDto) {
+    if (!query.passengerEmail?.trim()) {
+      throw new BadRequestException('passengerEmail zorunludur');
+    }
+
+    return this.bookingsService.getBookings(query.passengerEmail);
   }
 
   @UseGuards(UserAuthGuard)
